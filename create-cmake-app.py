@@ -29,7 +29,7 @@ def create_nested_file(path, content):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="cmake template cli tool",
+        description="create cmake app cli tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent(
             """
@@ -151,7 +151,7 @@ def main():
             #include <iostream>
 
             int main() {
-                std::cout << "hello from cmake template cli!" << '\\n';
+                std::cout << "hello from create cmake app!" << '\\n';
                 return 0;
             }
         """,
