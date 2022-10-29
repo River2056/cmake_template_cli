@@ -11,7 +11,7 @@ def log_status(func):
     def wrapper(path, content):
         print(f"Creating {str(path)}...")
         func(path, content)
-        print(f"Done creating {str(path)}")
+        print(f"Done creating {str(path)}", end="\n\n")
 
     return wrapper
 
@@ -172,7 +172,7 @@ def main():
     # src/include/CMakeLists.txt
     # empty CMakeLists.txt, add custom later
     Path(src_dir_path).joinpath("CMakeLists.txt").touch()
-    print("Done creating src/CMakeLists.txt")
+    print("Done creating src/CMakeLists.txt\n")
 
     # .gitignore
     create_nested_file(
@@ -188,7 +188,7 @@ def main():
     # git init
     os.chdir(project_dir_path)
     result = subprocess.run(["git", "init"], stdout=subprocess.PIPE)
-    print(result)
+    print(result, end="\n\n")
 
     print("Done generating cmake template project!")
 
