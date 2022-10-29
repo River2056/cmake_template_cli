@@ -7,20 +7,24 @@ import subprocess
 from pathlib import Path
 
 
+def log_status(func):
+    def wrapper(path, content):
+        print(f"Creating {str(path)}...")
+        func(path, content)
+        print(f"Done creating {str(path)}")
+
+    return wrapper
+
+
 def write_to_output(path, content):
     with open(path, "wt", encoding="utf-8") as output:
         output.write(textwrap.dedent(content))
 
 
+@log_status
 def create_nested_file(path, content):
     path.touch()
-    print(f"{str(path)} created")
     write_to_output(path, content)
-    print(f"Done creating {path}")
-
-
-def test():
-    pass
 
 
 def main():
@@ -54,22 +58,27 @@ def main():
     cmake_dir_path = Path(project_dir_path.joinpath("cmake"))
     app_dir_path = Path(project_dir_path.joinpath("app"))
     src_dir_path = Path(project_dir_path.joinpath("src"))
+    src_include_dir_path = Path(src_dir_path.joinpath("include"))
     external_dir_path = Path(project_dir_path.joinpath("external"))
 
+    # put in here for nested directories creation
+    nested_dirs = [
+        cmake_dir_path,
+        app_dir_path,
+        src_dir_path,
+        src_include_dir_path,
+        external_dir_path,
+    ]
+
     # creating directories
-    cmake_dir_path.mkdir()
-    print(f"{str(cmake_dir_path)} created")
-    app_dir_path.mkdir()
-    print(f"{str(app_dir_path)} created")
-    src_dir_path.mkdir()
-    print(f"{str(src_dir_path)} created")
-    external_dir_path.mkdir()
-    print(f"{str(external_dir_path)} created")
+    for dir in nested_dirs:
+        dir.mkdir()
+        print(f"{str(dir)} created")
 
     # root Makefile
     create_nested_file(
         Path(project_dir_path.joinpath("Makefile")),
-        """
+        """\
             exe_name := task
 
             all: run
@@ -99,7 +108,7 @@ def main():
     # root CMakeLists.txt
     create_nested_file(
         Path(project_dir_path).joinpath("CMakeLists.txt"),
-        """
+        """\
             cmake_minimum_required(VERSION 3.16)
 
             project(task)
@@ -120,7 +129,7 @@ def main():
     # AddGitSubmodule.cmake
     create_nested_file(
         Path(cmake_dir_path).joinpath("AddGitSubmodule.cmake"),
-        """
+        """\
             function(add_git_submodule dir)
             \tfind_package(Git REQUIRED)
 
@@ -138,7 +147,7 @@ def main():
     # app/main.cpp
     create_nested_file(
         Path(app_dir_path).joinpath("main.cpp"),
-        """
+        """\
             #include <iostream>
 
             int main() {
@@ -151,7 +160,7 @@ def main():
     # app/CMakeLists.txt
     create_nested_file(
         Path(app_dir_path).joinpath("CMakeLists.txt"),
-        """
+        """\
             set(EXECUTABLE_SOURCES 
                 "main.cpp")
 
@@ -160,6 +169,7 @@ def main():
     )
 
     # src/CMakeLists.txt
+    # src/include/CMakeLists.txt
     # empty CMakeLists.txt, add custom later
     Path(src_dir_path).joinpath("CMakeLists.txt").touch()
     print("Done creating src/CMakeLists.txt")
@@ -167,7 +177,7 @@ def main():
     # .gitignore
     create_nested_file(
         Path(project_dir_path).joinpath(".gitignore"),
-        """
+        """\
             .ccls-cache/
             external/
             build/
