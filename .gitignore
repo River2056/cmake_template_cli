@@ -1,4 +1,2 @@
-__pycache__/
-build/
+create_cmake_app.egg-info/
 dist/
-create-cmake-app.spec
