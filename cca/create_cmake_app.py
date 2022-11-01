@@ -34,7 +34,8 @@ def main():
         epilog=textwrap.dedent(
             """
             navigate to destination and run:
-            python main.py -n <your-project-name> (REQUIRED)
+            python main.py -n <your-project-name> (REQUIRED) # if you run script directly
+            cca -n <your-project-name> (REQUIRED)
 
             script will generate project directory and necessary nested template files
                                """
