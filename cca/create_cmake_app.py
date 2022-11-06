@@ -34,19 +34,31 @@ def main():
         epilog=textwrap.dedent(
             """
             navigate to destination and run:
-            python main.py -n <your-project-name> (REQUIRED) # if you run script directly
-            cca -n <your-project-name> (REQUIRED)
+            python main.py -n <your-project-name> -em [submodule|fetchcontent](REQUIRED) # if you run script directly
+            cca -n <your-project-name> -em [submodule|fetchcontent] (REQUIRED)
+
 
             script will generate project directory and necessary nested template files
                                """
         ),
     )
     parser.add_argument("-n", "--name", help="project name")
+    parser.add_argument(
+        "-em",
+        "--external-mode",
+        help="how external libararies should be added; e.g. submodule, fetchcontent",
+    )
 
     args = parser.parse_args()
 
     if not args.name:
         print("Please provide project directory name!")
+        sys.exit(1)
+
+    if not args.external_mode:
+        print(
+            "Please choose how external libraries should be added (git submodule add, FetchContent)"
+        )
         sys.exit(1)
 
     project_name = args.name
@@ -64,12 +76,13 @@ def main():
 
     # put in here for nested directories creation
     nested_dirs = [
-        cmake_dir_path,
         app_dir_path,
         src_dir_path,
         src_include_dir_path,
-        external_dir_path,
     ]
+    if args.external_mode == "submodule":
+        nested_dirs.append(external_dir_path)
+        nested_dirs.append(cmake_dir_path)
 
     # creating directories
     for dir in nested_dirs:
@@ -77,73 +90,96 @@ def main():
         print(f"{str(dir)} created")
 
     # root Makefile
+    makefile_content = textwrap.dedent("""\
+        exe_name := task
+
+        all: run
+
+        clean:
+        \tif [ -d ./build/_deps ]; then mv ./build/_deps ./; fi
+        \trm -rf ./build
+        \tmkdir build
+        \tif [ -d ./_deps ]; then mv ./_deps ./build; fi
+
+        build: clean
+        \tcmake -S . -B ./build -GNinja
+        \tif [ -d ./build/app ]; then cmake --build ./build --target $(exe_name); \
+        \telse cmake --build ./build; fi
+        \tmv ./build/compile_commands.json .
+
+        run: build
+        \t./build/app/$(exe_name).exe
+    """)
     create_nested_file(
-        Path(project_dir_path.joinpath("Makefile")),
-        """\
-            exe_name := task
-
-            all: run
-
-            clean:
-            \trm -rf ./build
-            \tmkdir build
-
-            build: clean
-            \tcmake -S . -B ./build
-            \tcmake --build ./build
-
-            run: build
-            \t./build/app/Debug/$(exe_name).exe
-
-            pre_generate: clean
-            \tcmake -S . -B ./build -GNinja
-            \tcmake --build ./build
-            \tmv ./build/compile_commands.json .
-            
-            generate: pre_generate
-            \trm -rf ./build
-            \tmkdir build
-        """,
-    )
+        Path(project_dir_path.joinpath("Makefile")), makefile_content)
 
     # root CMakeLists.txt
-    create_nested_file(
-        Path(project_dir_path).joinpath("CMakeLists.txt"),
+    s = ""
+    s += textwrap.dedent(
         """\
-            cmake_minimum_required(VERSION 3.16)
+        cmake_minimum_required(VERSION 3.21)
 
-            project(task)
+        project(task)
 
-            set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-            set(CMAKE_CXX_STANDARD 17)
-            set(CMAKE_CXX_STANDARD_REQUIRED ON)
-            set(CMAKE_CXX_EXTENSIONS OFF) 
+        set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+        set(CMAKE_CXX_STANDARD 17)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        set(CMAKE_CXX_EXTENSIONS OFF) 
 
+    """
+    )
+
+    if args.external_mode == "submodule":
+        s += textwrap.dedent(
+            """\
             set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
             include(AddGitSubmodule)
 
-            add_subdirectory(src)
-            add_subdirectory(app)
-        """,
+        """
+        )
+
+    else:
+        s += textwrap.dedent(
+            """\
+            # uncomment below and add desired libararies
+            include(FetchContent)
+            # FetchContent_Declare(
+            #     SFML
+            #     GIT_REPOSITORY https://github.com/SFML/SFML.git
+            #     GIT_TAG 2.6.x
+            # )
+            # FetchContent_MakeAvailable(SFML)
+
+        """
+        )
+
+    s += textwrap.dedent(
+        """
+        add_subdirectory(src)
+        add_subdirectory(app)
+    """
     )
+
+    create_nested_file(Path(project_dir_path).joinpath("CMakeLists.txt"), s)
 
     # AddGitSubmodule.cmake
-    create_nested_file(
-        Path(cmake_dir_path).joinpath("AddGitSubmodule.cmake"),
-        """\
-            function(add_git_submodule dir)
-            \tfind_package(Git REQUIRED)
+    if args.external_mode == "submodule":
+        create_nested_file(
+            Path(cmake_dir_path).joinpath("AddGitSubmodule.cmake"),
+            """\
+                function(add_git_submodule dir)
+                \tfind_package(Git REQUIRED)
 
-            \tif (NOT EXISTS ${dir}/CMakeLists.txt)
-            \t\texecute_process(COMMAND ${GIT_EXECUTABLE}
-            \t\t\tsubmodule update --init --recursive -- ${dir}
-            \t\t\tWORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-            \tendif()
+                \tif (NOT EXISTS ${dir}/CMakeLists.txt)
+                \t\texecute_process(COMMAND ${GIT_EXECUTABLE}
+                \t\t\tsubmodule update --init --recursive -- ${dir}
+                \t\t\tWORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+                \tendif()
 
-            \tadd_subdirectory(${dir})
-            endfunction() 
-        """,
-    )
+                \tadd_subdirectory(${dir})
+                endfunction() 
+            """,
+        )
 
     # app/main.cpp
     create_nested_file(
